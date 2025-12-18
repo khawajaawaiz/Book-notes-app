@@ -1,0 +1,10 @@
+CREATE TABLE books (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT NOT NULL,
+  rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+  notes TEXT,
+  read_date DATE,
+  isbn TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
