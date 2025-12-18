@@ -7,11 +7,7 @@ const port = 3000;
 
 // PostgreSQL client
 const db = new pg.Client({
-  user: "postgres",
-  host: "localhost",
-  database: "Book Notes Tracker",
-  password: "SQL@2025",
-  port: 5432,
+  connectionString: "postgresql://postgres.tvwwsnwfsybzeeulcxjb:HWW7s348UpZRZGKY@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres",
 });
 
 // Connect to DB
