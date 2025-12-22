@@ -240,6 +240,12 @@ app.post("/delete", isAuthenticated, async (req, res) => {
   }
 });
 
+// Preview Book Route
+app.get("/preview/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+  res.render("preview.ejs", { isbn: isbn });
+});
+
 app.get("/edit/:id", isAuthenticated, async (req, res) => {
   try {
     const bookId = req.params.id;
