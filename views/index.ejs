@@ -57,13 +57,15 @@
                       </p>
 
                       <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <a href="/edit/<%= book.id %>" class="edit-btn"
-                          style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
-                          Edit</a>
-                        <form action="/delete" method="POST" style="margin: 0;">
-                          <input type="hidden" name="id" value="<%= book.id %>">
-                          <button type="submit" class="delete-btn">🗑 Delete</button>
-                        </form>
+                        <% if (locals.user && locals.user.is_admin) { %>
+                          <a href="/edit/<%= book.id %>" class="edit-btn"
+                            style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
+                            Edit</a>
+                          <form action="/delete" method="POST" style="margin: 0;">
+                            <input type="hidden" name="id" value="<%= book.id %>">
+                            <button type="submit" class="delete-btn">🗑 Delete</button>
+                          </form>
+                          <% } %>
                       </div>
 
                 </div>

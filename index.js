@@ -92,7 +92,11 @@ app.post("/login", async (req, res) => {
           return res.render("login.ejs", { error: "Error logging in" });
         } else {
           if (result) {
-            req.session.user = user;
+            req.session.user = {
+              id: user.id,
+              email: user.email,
+              is_admin: user.is_admin
+            };
             res.redirect("/");
           } else {
             res.render("login.ejs", { error: "Incorrect Password" });
@@ -115,12 +119,19 @@ app.get("/logout", (req, res) => {
   });
 });
 
-// Middleware to check authentication
 function isAuthenticated(req, res, next) {
   if (req.session.user) {
     return next();
   }
   res.redirect("/login");
+}
+
+// Middleware to check admin role
+function isAdmin(req, res, next) {
+  if (req.session.user && req.session.user.is_admin) {
+    return next();
+  }
+  res.redirect("/?error=Unauthorized: Admin access required");
 }
 
 // API Route
@@ -190,12 +201,12 @@ app.get("/", isAuthenticated, async (req, res) => {
 });
 
 // Render Add Book Page
-app.get("/add", isAuthenticated, (req, res) => {
+app.get("/add", isAuthenticated, isAdmin, (req, res) => {
   res.render("new.ejs");
 });
 
 // Handle Add Book
-app.post("/add", isAuthenticated, async (req, res) => {
+app.post("/add", isAuthenticated, isAdmin, async (req, res) => {
   const { title, author, rating, read_date, isbn, notes } = req.body;
 
   // Validation
@@ -229,7 +240,7 @@ app.post("/add", isAuthenticated, async (req, res) => {
 });
 
 // Handle Delete Book
-app.post("/delete", isAuthenticated, async (req, res) => {
+app.post("/delete", isAuthenticated, isAdmin, async (req, res) => {
   try {
     const id = req.body.id;
     await db.query("DELETE FROM books WHERE id = $1", [id]);
@@ -241,7 +252,7 @@ app.post("/delete", isAuthenticated, async (req, res) => {
 });
 
 
-app.get("/edit/:id", isAuthenticated, async (req, res) => {
+app.get("/edit/:id", isAuthenticated, isAdmin, async (req, res) => {
   try {
     const bookId = req.params.id;
 
@@ -261,7 +272,7 @@ app.get("/edit/:id", isAuthenticated, async (req, res) => {
 });
 
 // Handle Edit Book
-app.post("/edit/:id", isAuthenticated, async (req, res) => {
+app.post("/edit/:id", isAuthenticated, isAdmin, async (req, res) => {
   try {
     const bookId = req.params.id;
     const { title, author, rating, notes, read_date, isbn } = req.body;
