@@ -1,126 +1,113 @@
-<!DOCTYPE html>
-<html>
+<%- include('partials/header') %>
 
-<head>
-  <title>My Book Notes</title>
-  <link rel="stylesheet" href="/style.css">
-</head>
+  <div class="container mt-4">
+    <div class="top-bar d-flex justify-content-between align-items-center mb-4">
+      <form action="/" method="GET" class="search-form" style="display:inline-block;">
+        <input type="text" name="search" placeholder="Search books..."
+          style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+        <button type="submit"
+          style="padding: 8px 12px; border-radius: 4px; background: #007bff; color: white; border: none; cursor: pointer;">🔍</button>
+        <% if (typeof books !=='undefined' && books.length===0) { %>
+          <a href="/" style="margin-left: 10px; color: #007bff; text-decoration: none;">Clear Search</a>
+          <% } %>
+      </form>
 
-<body>
-
-
-  <div class="top-bar">
-    <div>
-      <a href="/add" class="add-btn">➕ Add Book</a>
-      <a href="/logout" class="add-btn" style="background: #dc3545; margin-left: 10px;">🚪 Logout</a>
+      <div class="sort-bar mb-0">
+        <a href="/?sort=recent">🕒 Recent</a>
+        <a href="/?sort=rating">⭐ Rating</a>
+        <a href="/?sort=title">🔤 Title</a>
+      </div>
     </div>
-    <form action="/" method="GET" class="search-form" style="display:inline-block; margin-left: 20px;">
-      <input type="text" name="search" placeholder="Search books..."
-        style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
-      <button type="submit"
-        style="padding: 8px 12px; border-radius: 4px; background: #007bff; color: white; border: none; cursor: pointer;">🔍</button>
-      <% if (typeof books !=='undefined' && books.length===0) { %>
-        <a href="/" style="margin-left: 10px; color: #007bff; text-decoration: none;">Clear Search</a>
-        <% } %>
-    </form>
-  </div>
 
-  <h1>📚 My Book Notes</h1>
+    <h1 class="text-center mb-4">📚 My Book Notes</h1>
 
+    <% if (typeof error !=="undefined" ) { %>
+      <div class="error-box">
+        <%= error %>
+      </div>
+      <% } %>
 
-
-  <div class="sort-bar">
-    <a href="/?sort=recent">🕒 Recent</a>
-    <a href="/?sort=rating">⭐ Rating</a>
-    <a href="/?sort=title">🔤 Title</a>
-  </div>
-
-  <% if (typeof error !=="undefined" ) { %>
-    <div class="error-box">
-      <%= error %>
-    </div>
-    <% } %>
-
-      <% if (typeof message !=="undefined" ) { %>
-        <div class="success-box"
-          style="background: #e6fffa; color: #00796b; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; text-align: center;">
-          <%= message %>
-        </div>
-        <% } %>
-
-          <div class="books-container">
-            <% books.forEach(book=> { %>
-              <div class="book-card">
-
-                <% if (book.isbn) { %>
-                  <img src="https://covers.openlibrary.org/b/isbn/<%= book.isbn %>-M.jpg" alt="Book Cover">
-                  <% } %>
-
-                    <h2>
-                      <%= book.title %>
-                    </h2>
-                    <p><strong>Author:</strong>
-                      <%= book.author %>
-                    </p>
-                    <p><strong>Rating:</strong> ⭐ <%= book.rating %>/5</p>
-                    <p><strong>Read on:</strong>
-                      <%= book.read_date %>
-                    </p>
-                    <p class="notes">
-                      <%= book.notes %>
-                    </p>
-
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                      <% if (book.isbn) { %>
-                        <a href="/preview/<%= book.isbn %>" target="_blank" class="preview-btn"
-                          style="text-decoration: none; padding: 8px 12px; background: #0dcaf0; color: white; border-radius: 5px; font-size: 14px;">📖
-                          Preview</a>
-                        <% } %>
-                          <a href="/edit/<%= book.id %>" class="edit-btn"
-                            style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
-                            Edit</a>
-                          <form action="/delete" method="POST" style="margin: 0;">
-                            <input type="hidden" name="id" value="<%= book.id %>">
-                            <button type="submit" class="delete-btn">🗑 Delete</button>
-                          </form>
-                    </div>
-
-              </div>
-              <% }) %>
+        <% if (typeof message !=="undefined" ) { %>
+          <div class="success-box"
+            style="background: #e6fffa; color: #00796b; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; text-align: center;">
+            <%= message %>
           </div>
+          <% } %>
 
-          <div class="pagination"
-            style="display: flex; justify-content: center; gap: 10px; margin-top: 30px; flex-wrap: wrap;">
-            <% if (currentPage> 1) { %>
-              <a href="/?page=1<% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
-                class="page-btn">« First</a>
-              <a href="/?page=<%= currentPage - 1 %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
-                class="page-btn">‹ Prev</a>
-              <% } %>
+            <div class="books-container">
+              <% books.forEach(book=> { %>
+                <div class="book-card">
 
-                <% for (let i=Math.max(1, currentPage - 2); i <=Math.min(totalPages, currentPage + 2); i++) { %>
-                  <% if (i===currentPage) { %>
-                    <span class="page-btn active" style="background: #007bff; color: white; cursor: default;">
-                      <%= i %>
-                    </span>
-                    <% } else { %>
-                      <a href="/?page=<%= i %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
-                        class="page-btn">
+                  <% if (book.isbn) { %>
+                    <img src="https://covers.openlibrary.org/b/isbn/<%= book.isbn %>-M.jpg" alt="Book Cover">
+                    <% } %>
+
+                      <h2>
+                        <%= book.title %>
+                      </h2>
+                      <p><strong>Author:</strong>
+                        <%= book.author %>
+                      </p>
+                      <p><strong>Rating:</strong> ⭐ <%= book.rating %>/5</p>
+                      <p><strong>Read on:</strong>
+                        <%= book.read_date %>
+                      </p>
+                      <p class="notes">
+                        <%= book.notes %>
+                      </p>
+
+                      <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <% if (book.isbn) { %>
+                          <a href="/preview/<%= book.isbn %>" target="_blank" class="preview-btn"
+                            style="text-decoration: none; padding: 8px 12px; background: #0dcaf0; color: white; border-radius: 5px; font-size: 14px;">📖
+                            Preview</a>
+                          <% } %>
+                            <a href="/edit/<%= book.id %>" class="edit-btn"
+                              style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
+                              Edit</a>
+                            <form action="/delete" method="POST" style="margin: 0;">
+                              <input type="hidden" name="id" value="<%= book.id %>">
+                              <button type="submit" class="delete-btn">🗑 Delete</button>
+                            </form>
+                      </div>
+
+                </div>
+                <% }) %>
+            </div>
+
+            <div class="pagination"
+              style="display: flex; justify-content: center; gap: 10px; margin-top: 30px; flex-wrap: wrap;">
+              <% if (currentPage> 1) { %>
+                <a href="/?page=1<% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
+                  class="page-btn">« First</a>
+                <a href="/?page=<%= currentPage - 1 %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
+                  class="page-btn">‹ Prev</a>
+                <% } %>
+
+                  <% for (let i=Math.max(1, currentPage - 2); i <=Math.min(totalPages, currentPage + 2); i++) { %>
+                    <% if (i===currentPage) { %>
+                      <span class="page-btn active" style="background: #007bff; color: white; cursor: default;">
                         <%= i %>
-                      </a>
-                      <% } %>
+                      </span>
+                      <% } else { %>
+                        <a href="/?page=<%= i %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
+                          class="page-btn">
+                          <%= i %>
+                        </a>
                         <% } %>
+                          <% } %>
 
-                          <% if (currentPage < totalPages) { %>
-                            <a href="/?page=<%= currentPage + 1 %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
-                              class="page-btn">Next ›</a>
-                            <a href="/?page=<%= totalPages %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
-                              class="page-btn">Last »</a>
-                            <% } %>
-          </div>
+                            <% if (currentPage < totalPages) { %>
+                              <a href="/?page=<%= currentPage + 1 %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
+                                class="page-btn">Next ›</a>
+                              <a href="/?page=<%= totalPages %><% if (search) { %>&search=<%= search %><% } %><% if (selectedSort) { %>&sort=<%= selectedSort %><% } %>"
+                                class="page-btn">Last »</a>
+                              <% } %>
+            </div>
 
-          <div style="text-align: center; margin-top: 15px; color: #666; font-size: 14px;">
-            Page <%= currentPage %> of <%= totalPages %> | <%= totalBooks %> total books
-          </div>
+            <div style="text-align: center; margin-top: 15px; color: #666; font-size: 14px;">
+              Page <%= currentPage %> of <%= totalPages %> | <%= totalBooks %> total books
+            </div>
 
-</html>
+  </div>
+  <%- include('partials/footer') %>
