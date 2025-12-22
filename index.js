@@ -37,6 +37,8 @@ app.get("/api/books", async (req, res) => {
 app.get("/", async (req, res) => {
   try {
     let sort = req.query.sort;
+    let page = parseInt(req.query.page) || 1;
+    const itemsPerPage = 12;
     let orderBy = "created_at DESC"; // default
 
     if (sort === "rating") {
@@ -48,22 +50,38 @@ app.get("/", async (req, res) => {
     }
 
     let query = "SELECT * FROM books";
+    let countQuery = "SELECT COUNT(*) FROM books";
     let params = [];
 
     if (req.query.search) {
       query += " WHERE title ILIKE $1";
+      countQuery += " WHERE title ILIKE $1";
       params.push(`%${req.query.search}%`);
-      query += ` ORDER BY ${orderBy}`;
-    } else {
-      query += ` ORDER BY ${orderBy}`;
     }
+
+    // Get total count
+    const countResult = await db.query(countQuery, params);
+    const totalBooks = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalBooks / itemsPerPage);
+
+    // Ensure page is valid
+    if (page < 1) page = 1;
+    if (page > totalPages && totalPages > 0) page = totalPages;
+
+    const offset = (page - 1) * itemsPerPage;
+    query += ` ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(itemsPerPage, offset);
 
     const result = await db.query(query, params);
 
     res.render("index.ejs", {
       books: result.rows,
       selectedSort: sort,
-      message: req.query.message, // Pass success message to view
+      message: req.query.message,
+      currentPage: page,
+      totalPages: totalPages,
+      totalBooks: totalBooks,
+      search: req.query.search || "",
     });
 
   } catch (err) {
