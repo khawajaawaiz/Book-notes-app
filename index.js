@@ -1,9 +1,12 @@
 import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
+import bcrypt from "bcrypt";
+import session from "express-session";
 
 const app = express();
 const port = 3000;
+const saltRounds = 10;
 
 // PostgreSQL client
 const db = new pg.Client({
@@ -23,6 +26,102 @@ db.connect()
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use(session({
+  secret: "TOPSECRETWORD", // In production, this should be in an environment variable
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// Pass user to all views
+app.use((req, res, next) => {
+  res.locals.user = req.session.user;
+  next();
+});
+
+// Authentication Routes
+app.get("/register", (req, res) => {
+  res.render("register.ejs");
+});
+
+app.post("/register", async (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+
+  try {
+    const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+
+    if (checkResult.rows.length > 0) {
+      res.render("register.ejs", { error: "You already registered" });
+    } else {
+      bcrypt.hash(password, saltRounds, async (err, hash) => {
+        if (err) {
+          console.error("Error hashing password:", err);
+          return res.render("register.ejs", { error: "Error registering user" });
+        } else {
+          await db.query(
+            "INSERT INTO users (email, password) VALUES ($1, $2)",
+            [email, hash]
+          );
+          res.redirect("/login");
+        }
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.render("register.ejs", { error: "Error registering user" });
+  }
+});
+
+app.get("/login", (req, res) => {
+  res.render("login.ejs");
+});
+
+app.post("/login", async (req, res) => {
+  const email = req.body.email;
+  const loginPassword = req.body.password;
+
+  try {
+    const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const storedHashedPassword = user.password;
+      bcrypt.compare(loginPassword, storedHashedPassword, (err, result) => {
+        if (err) {
+          console.error("Error comparing passwords:", err);
+          return res.render("login.ejs", { error: "Error logging in" });
+        } else {
+          if (result) {
+            req.session.user = user;
+            res.redirect("/");
+          } else {
+            res.render("login.ejs", { error: "Incorrect Password" });
+          }
+        }
+      });
+    } else {
+      res.render("login.ejs", { error: "User not found" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.render("login.ejs", { error: "Error logging in" });
+  }
+});
+
+app.get("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) console.error("Error destroying session:", err);
+    res.redirect("/login");
+  });
+});
+
+// Middleware to check authentication
+function isAuthenticated(req, res, next) {
+  if (req.session.user) {
+    return next();
+  }
+  res.redirect("/login");
+}
 
 // API Route
 app.get("/api/books", async (req, res) => {
@@ -34,7 +133,7 @@ app.get("/api/books", async (req, res) => {
   }
 });
 
-app.get("/", async (req, res) => {
+app.get("/", isAuthenticated, async (req, res) => {
   try {
     let sort = req.query.sort;
     let page = parseInt(req.query.page) || 1;
@@ -91,12 +190,12 @@ app.get("/", async (req, res) => {
 });
 
 // Render Add Book Page
-app.get("/add", (req, res) => {
+app.get("/add", isAuthenticated, (req, res) => {
   res.render("new.ejs");
 });
 
 // Handle Add Book
-app.post("/add", async (req, res) => {
+app.post("/add", isAuthenticated, async (req, res) => {
   const { title, author, rating, read_date, isbn, notes } = req.body;
 
   // Validation
@@ -130,7 +229,7 @@ app.post("/add", async (req, res) => {
 });
 
 // Handle Delete Book
-app.post("/delete", async (req, res) => {
+app.post("/delete", isAuthenticated, async (req, res) => {
   try {
     const id = req.body.id;
     await db.query("DELETE FROM books WHERE id = $1", [id]);
@@ -141,7 +240,7 @@ app.post("/delete", async (req, res) => {
   }
 });
 
-app.get("/edit/:id", async (req, res) => {
+app.get("/edit/:id", isAuthenticated, async (req, res) => {
   try {
     const bookId = req.params.id;
 
@@ -161,7 +260,7 @@ app.get("/edit/:id", async (req, res) => {
 });
 
 // Handle Edit Book
-app.post("/edit/:id", async (req, res) => {
+app.post("/edit/:id", isAuthenticated, async (req, res) => {
   try {
     const bookId = req.params.id;
     const { title, author, rating, notes, read_date, isbn } = req.body;
