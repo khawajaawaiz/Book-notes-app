@@ -159,18 +159,24 @@ app.get("/", isAuthenticated, async (req, res) => {
       orderBy = "title ASC";
     }
 
-    let query = "SELECT * FROM books";
+    let query = `
+      SELECT books.*, 
+      EXISTS (SELECT 1 FROM favorites WHERE user_id = $1 AND book_id = books.id) AS is_favourite
+      FROM books
+    `;
     let countQuery = "SELECT COUNT(*) FROM books";
-    let params = [];
+    let params = [req.session.user.id];
+    let countParams = [];
 
     if (req.query.search) {
-      query += " WHERE title ILIKE $1";
+      query += " WHERE title ILIKE $2";
       countQuery += " WHERE title ILIKE $1";
       params.push(`%${req.query.search}%`);
+      countParams.push(`%${req.query.search}%`);
     }
 
     // Get total count
-    const countResult = await db.query(countQuery, params);
+    const countResult = await db.query(countQuery, countParams);
     const totalBooks = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalBooks / itemsPerPage);
 
@@ -248,6 +254,61 @@ app.post("/delete", isAuthenticated, isAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error deleting book");
+  }
+});
+
+// Favorites Routes
+app.get("/favorites", isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const result = await db.query(
+      `SELECT books.*, true as is_favourite 
+       FROM books 
+       JOIN favorites ON books.id = favorites.book_id 
+       WHERE favorites.user_id = $1 
+       ORDER BY favorites.id DESC`,
+      [userId]
+    );
+
+    res.render("favorites.ejs", {
+      books: result.rows,
+      user: req.session.user
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading favorites");
+  }
+});
+
+app.post("/favorite", isAuthenticated, async (req, res) => {
+  try {
+    const { bookId } = req.body;
+    const userId = req.session.user.id;
+
+    // Check if already favorited
+    const checkResult = await db.query(
+      "SELECT * FROM favorites WHERE user_id = $1 AND book_id = $2",
+      [userId, bookId]
+    );
+
+    if (checkResult.rows.length > 0) {
+      // Remove from favorites
+      await db.query(
+        "DELETE FROM favorites WHERE user_id = $1 AND book_id = $2",
+        [userId, bookId]
+      );
+      res.json({ success: true, favorited: false });
+    } else {
+      // Add to favorites
+      await db.query(
+        "INSERT INTO favorites (user_id, book_id) VALUES ($1, $2)",
+        [userId, bookId]
+      );
+      res.json({ success: true, favorited: true });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update favorites" });
   }
 });
 
