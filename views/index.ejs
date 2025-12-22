@@ -57,18 +57,13 @@
                       </p>
 
                       <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <% if (book.isbn) { %>
-                          <a href="/preview/<%= book.isbn %>" target="_blank" class="preview-btn"
-                            style="text-decoration: none; padding: 8px 12px; background: #0dcaf0; color: white; border-radius: 5px; font-size: 14px;">📖
-                            Preview</a>
-                          <% } %>
-                            <a href="/edit/<%= book.id %>" class="edit-btn"
-                              style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
-                              Edit</a>
-                            <form action="/delete" method="POST" style="margin: 0;">
-                              <input type="hidden" name="id" value="<%= book.id %>">
-                              <button type="submit" class="delete-btn">🗑 Delete</button>
-                            </form>
+                        <a href="/edit/<%= book.id %>" class="edit-btn"
+                          style="text-decoration: none; padding: 8px 12px; background: #FFC107; color: black; border-radius: 5px; font-size: 14px;">✏
+                          Edit</a>
+                        <form action="/delete" method="POST" style="margin: 0;">
+                          <input type="hidden" name="id" value="<%= book.id %>">
+                          <button type="submit" class="delete-btn">🗑 Delete</button>
+                        </form>
                       </div>
 
                 </div>
