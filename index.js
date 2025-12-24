@@ -307,33 +307,51 @@ app.post("/favorite", isAuthenticated, async (req, res) => {
     const { bookId } = req.body;
     const userId = req.user.id;
 
+    console.log("-----------------------------------------");
+    console.log("FAVORITE REQUEST RECEIVED");
+    console.log("User ID:", userId);
+    console.log("Raw Request Body:", req.body);
+    console.log("Book ID:", bookId);
+
     if (!bookId) {
+      console.error("Missing bookId in request body");
       return res.status(400).json({ error: "Missing bookId" });
+    }
+
+    const numericBookId = parseInt(bookId);
+    if (isNaN(numericBookId)) {
+      console.error("Invalid bookId type:", typeof bookId);
+      return res.status(400).json({ error: "Invalid bookId" });
     }
 
     // Check if already favorited
     const checkResult = await pool.query(
       "SELECT * FROM favorites WHERE user_id = $1 AND book_id = $2",
-      [userId, bookId]
+      [userId, numericBookId]
     );
+
+    console.log("Existing favorite check rows:", checkResult.rows.length);
 
     if (checkResult.rows.length > 0) {
       // Remove from favorites
-      await pool.query(
+      const deleteResult = await pool.query(
         "DELETE FROM favorites WHERE user_id = $1 AND book_id = $2",
-        [userId, bookId]
+        [userId, numericBookId]
       );
+      console.log("Deleted favorite. Rows affected:", deleteResult.rowCount);
       res.json({ success: true, favorited: false });
     } else {
       // Add to favorites
-      await pool.query(
-        "INSERT INTO favorites (user_id, book_id) VALUES ($1, $2)",
-        [userId, bookId]
+      const insertResult = await pool.query(
+        "INSERT INTO favorites (user_id, book_id) VALUES ($1, $2) RETURNING *",
+        [userId, numericBookId]
       );
+      console.log("Inserted favorite:", insertResult.rows[0]);
       res.json({ success: true, favorited: true });
     }
+    console.log("-----------------------------------------");
   } catch (err) {
-    console.error("Error toggling favorite:", err);
+    console.error("CRITICAL ERROR IN /FAVORITE:", err);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });

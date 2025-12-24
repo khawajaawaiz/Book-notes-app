@@ -117,6 +117,7 @@
     document.querySelectorAll('.fav-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const bookId = btn.getAttribute('data-id');
+        console.log("Button clicked! bookId:", bookId);
         try {
           const response = await fetch('/favorite', {
             method: 'POST',
@@ -124,12 +125,16 @@
             body: JSON.stringify({ bookId })
           });
 
+          console.log("Response status:", response.status);
+
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+            console.error("Error from server:", errorData);
             throw new Error(errorData.error || `Server error: ${response.status}`);
           }
 
           const data = await response.json();
+          console.log("Data from server:", data);
           if (data.success) {
             btn.innerHTML = data.favorited ? '❤️' : '🤍';
             btn.style.transform = 'scale(1.2)';
@@ -137,7 +142,7 @@
           }
         } catch (err) {
           console.error('Error toggling favorite:', err);
-          alert('Failed to update favorite. Please check if you are logged in.');
+          alert('Failed to update favorite: ' + err.message);
         }
       });
     });
