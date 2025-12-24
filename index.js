@@ -5,14 +5,15 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import passport from "passport";
 import { Strategy } from "passport-local";
+import "dotenv/config";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const saltRounds = 10;
 
 // PostgreSQL Pool
 const pool = new pg.Pool({
-  connectionString: "postgresql://postgres.tvwwsnwfsybzeeulcxjb:HWW7s348UpZRZGKY@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres",
+  connectionString: process.env.DATABASE_URL,
 });
 
 // Test DB Connection
@@ -32,7 +33,7 @@ app.use(express.static("public"));
 
 
 app.use(session({
-  secret: "TOPSECRETWORD", // In production, this should be in an environment variable
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false } // Set to true if using HTTPS
