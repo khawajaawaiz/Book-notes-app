@@ -57,14 +57,21 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ bookId })
                     });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Server error: ${response.status}`);
+                    }
+
                     const data = await response.json();
                     if (data.success) {
                         if (!data.favorited) {
                             // If on favorites page, remove the card
-                            btn.closest('.book-card').style.opacity = '0';
-                            btn.closest('.book-card').style.transform = 'scale(0.9)';
+                            const card = btn.closest('.book-card');
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.9)';
                             setTimeout(() => {
-                                btn.closest('.book-card').remove();
+                                card.remove();
                                 if (document.querySelectorAll('.book-card').length === 0) {
                                     location.reload();
                                 }
@@ -73,6 +80,7 @@
                     }
                 } catch (err) {
                     console.error('Error toggling favorite:', err);
+                    alert('Failed to update favorite: ' + err.message);
                 }
             });
         });

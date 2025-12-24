@@ -134,11 +134,17 @@ passport.use(
 );
 
 passport.serializeUser((user, cb) => {
-  cb(null, user);
+  cb(null, user.id);
 });
 
-passport.deserializeUser((user, cb) => {
-  cb(null, user);
+passport.deserializeUser(async (id, cb) => {
+  try {
+    const result = await db.query("SELECT * FROM users WHERE id = $1", [id]);
+    const user = result.rows[0];
+    cb(null, user);
+  } catch (err) {
+    cb(err);
+  }
 });
 
 function isAuthenticated(req, res, next) {
@@ -315,19 +321,17 @@ app.post("/favorite", isAuthenticated, async (req, res) => {
 
     // Check if already favorited
     const checkResult = await db.query(
-      "SELECT * FROM favorites WHERE user_id = $1 AND book_id = $2",
+      "SELECT id FROM favorites WHERE user_id = $1 AND book_id = $2",
       [userId, numericBookId]
     );
 
     if (checkResult.rows.length > 0) {
-      // Remove from favorites
       await db.query(
         "DELETE FROM favorites WHERE user_id = $1 AND book_id = $2",
         [userId, numericBookId]
       );
       res.json({ success: true, favorited: false });
     } else {
-      // Add to favorites
       await db.query(
         "INSERT INTO favorites (user_id, book_id) VALUES ($1, $2)",
         [userId, numericBookId]
