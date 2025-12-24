@@ -3,6 +3,8 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import bcrypt from "bcrypt";
 import session from "express-session";
+import passport from "passport";
+import { Strategy } from "passport-local";
 
 const app = express();
 const port = 3000;
@@ -26,6 +28,8 @@ db.connect()
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+
+
 app.use(session({
   secret: "TOPSECRETWORD", // In production, this should be in an environment variable
   resave: false,
@@ -33,9 +37,12 @@ app.use(session({
   cookie: { secure: false } // Set to true if using HTTPS
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Pass user to all views
 app.use((req, res, next) => {
-  res.locals.user = req.session.user;
+  res.locals.user = req.user;
   next();
 });
 
@@ -59,11 +66,19 @@ app.post("/register", async (req, res) => {
           console.error("Error hashing password:", err);
           return res.render("register.ejs", { error: "Error registering user" });
         } else {
-          await db.query(
-            "INSERT INTO users (email, password) VALUES ($1, $2)",
+          const result = await db.query(
+            "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
             [email, hash]
           );
-          res.redirect("/login");
+          const user = result.rows[0];
+          req.login(user, (err) => {
+            if (err) {
+              console.error(err);
+              res.redirect("/login");
+            } else {
+              res.redirect("/");
+            }
+          });
         }
       });
     }
@@ -77,50 +92,56 @@ app.get("/login", (req, res) => {
   res.render("login.ejs");
 });
 
-app.post("/login", async (req, res) => {
-  const email = req.body.email;
-  const loginPassword = req.body.password;
-
-  try {
-    const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
-      const storedHashedPassword = user.password;
-      bcrypt.compare(loginPassword, storedHashedPassword, (err, result) => {
-        if (err) {
-          console.error("Error comparing passwords:", err);
-          return res.render("login.ejs", { error: "Error logging in" });
-        } else {
-          if (result) {
-            req.session.user = {
-              id: user.id,
-              email: user.email,
-              is_admin: user.is_admin
-            };
-            res.redirect("/");
-          } else {
-            res.render("login.ejs", { error: "Incorrect Password" });
-          }
-        }
-      });
-    } else {
-      res.render("login.ejs", { error: "User not found" });
-    }
-  } catch (err) {
-    console.error(err);
-    res.render("login.ejs", { error: "Error logging in" });
-  }
-});
+app.post("/login", passport.authenticate("local", {
+  successRedirect: "/",
+  failureRedirect: "/login",
+}));
 
 app.get("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) console.error("Error destroying session:", err);
+  req.logout((err) => {
+    if (err) console.error("Error logging out:", err);
     res.redirect("/login");
   });
 });
 
+passport.use(
+  new Strategy({ usernameField: "email" }, async function verify(email, password, cb) {
+    try {
+      const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+      if (result.rows.length > 0) {
+        const user = result.rows[0];
+        const storedHashedPassword = user.password;
+        bcrypt.compare(password, storedHashedPassword, (err, valid) => {
+          if (err) {
+            console.error("Error comparing passwords:", err);
+            return cb(err);
+          } else {
+            if (valid) {
+              return cb(null, user);
+            } else {
+              return cb(null, false);
+            }
+          }
+        });
+      } else {
+        return cb("User not found");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  })
+);
+
+passport.serializeUser((user, cb) => {
+  cb(null, user);
+});
+
+passport.deserializeUser((user, cb) => {
+  cb(null, user);
+});
+
 function isAuthenticated(req, res, next) {
-  if (req.session.user) {
+  if (req.isAuthenticated()) {
     return next();
   }
   res.redirect("/login");
@@ -128,7 +149,7 @@ function isAuthenticated(req, res, next) {
 
 // Middleware to check admin role
 function isAdmin(req, res, next) {
-  if (req.session.user && req.session.user.is_admin) {
+  if (req.user && req.user.is_admin) {
     return next();
   }
   res.redirect("/?error=Unauthorized: Admin access required");
@@ -165,7 +186,7 @@ app.get("/", isAuthenticated, async (req, res) => {
       FROM books
     `;
     let countQuery = "SELECT COUNT(*) FROM books";
-    let params = [req.session.user.id];
+    let params = [req.user.id];
     let countParams = [];
 
     if (req.query.search) {
@@ -260,7 +281,7 @@ app.post("/delete", isAuthenticated, isAdmin, async (req, res) => {
 // Favorites Routes
 app.get("/favorites", isAuthenticated, async (req, res) => {
   try {
-    const userId = req.session.user.id;
+    const userId = req.user.id;
     const result = await db.query(
       `SELECT books.*, true as is_favourite 
        FROM books 
@@ -272,7 +293,7 @@ app.get("/favorites", isAuthenticated, async (req, res) => {
 
     res.render("favorites.ejs", {
       books: result.rows,
-      user: req.session.user
+      user: req.user
     });
   } catch (err) {
     console.error(err);
@@ -283,7 +304,7 @@ app.get("/favorites", isAuthenticated, async (req, res) => {
 app.post("/favorite", isAuthenticated, async (req, res) => {
   try {
     const { bookId } = req.body;
-    const userId = req.session.user.id;
+    const userId = req.user.id;
 
     // Check if already favorited
     const checkResult = await db.query(
