@@ -123,6 +123,12 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookId })
           });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+          }
+
           const data = await response.json();
           if (data.success) {
             btn.innerHTML = data.favorited ? '❤️' : '🤍';
@@ -131,6 +137,7 @@
           }
         } catch (err) {
           console.error('Error toggling favorite:', err);
+          alert('Failed to update favorite. Please check if you are logged in.');
         }
       });
     });

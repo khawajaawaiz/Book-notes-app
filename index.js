@@ -10,21 +10,21 @@ const app = express();
 const port = 3000;
 const saltRounds = 10;
 
-// PostgreSQL client
-const db = new pg.Client({
+// PostgreSQL Pool
+const pool = new pg.Pool({
   connectionString: "postgresql://postgres.tvwwsnwfsybzeeulcxjb:HWW7s348UpZRZGKY@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres",
 });
 
-// Connect to DB
-db.connect()
-  .then(() => {
-    console.log("✅ Connected to PostgreSQL");
-  })
-  .catch((err) => {
-    console.error("❌ Database connection error", err);
-  });
+// Test DB Connection
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("❌ Database connection error:", err);
+  } else {
+    console.log("✅ Connected to PostgreSQL (Pool)");
+  }
+});
 
-// Middleware
+const db = pool; // Alias for convenience in existing queries
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
@@ -307,30 +307,34 @@ app.post("/favorite", isAuthenticated, async (req, res) => {
     const { bookId } = req.body;
     const userId = req.user.id;
 
+    if (!bookId) {
+      return res.status(400).json({ error: "Missing bookId" });
+    }
+
     // Check if already favorited
-    const checkResult = await db.query(
+    const checkResult = await pool.query(
       "SELECT * FROM favorites WHERE user_id = $1 AND book_id = $2",
       [userId, bookId]
     );
 
     if (checkResult.rows.length > 0) {
       // Remove from favorites
-      await db.query(
+      await pool.query(
         "DELETE FROM favorites WHERE user_id = $1 AND book_id = $2",
         [userId, bookId]
       );
       res.json({ success: true, favorited: false });
     } else {
       // Add to favorites
-      await db.query(
+      await pool.query(
         "INSERT INTO favorites (user_id, book_id) VALUES ($1, $2)",
         [userId, bookId]
       );
       res.json({ success: true, favorited: true });
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update favorites" });
+    console.error("Error toggling favorite:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 
