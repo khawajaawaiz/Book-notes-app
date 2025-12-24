@@ -121,15 +121,16 @@ passport.use(
             if (valid) {
               return cb(null, user);
             } else {
-              return cb(null, false);
+              return cb(null, false, { message: "Incorrect password." });
             }
           }
         });
       } else {
-        return cb("User not found");
+        return cb(null, false, { message: "User not found." });
       }
     } catch (err) {
-      console.log(err);
+      console.error("Database error during login:", err);
+      return cb(err);
     }
   })
 );
@@ -142,7 +143,11 @@ passport.deserializeUser(async (id, cb) => {
   try {
     const result = await db.query("SELECT * FROM users WHERE id = $1", [id]);
     const user = result.rows[0];
-    cb(null, user);
+    if (user) {
+      cb(null, user);
+    } else {
+      cb(new Error("User not found during deserialization"));
+    }
   } catch (err) {
     cb(err);
   }
