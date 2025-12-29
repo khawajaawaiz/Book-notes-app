@@ -39,7 +39,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "default_dev_secret", // Fallback for development/deployment without env
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false } // Set to true if using HTTPS
+  cookie: { secure: true } // Set to true if using HTTPS
 }));
 
 app.use(passport.initialize());
@@ -114,8 +114,6 @@ app.get("/logout", (req, res) => {
     res.redirect("/login");
   });
 });
-
-
 
 passport.use(
   "local",
