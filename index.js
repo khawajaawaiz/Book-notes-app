@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import passport from "passport";
 import { Strategy } from "passport-local";
+import GoogleStrategy from "passport-google-oauth2";
 import "dotenv/config";
 
 const app = express();
@@ -108,13 +109,20 @@ app.get("/logout", (req, res) => {
   });
 });
 
+
+
 passport.use(
+  "local",
   new Strategy({ usernameField: "email" }, async function verify(email, password, cb) {
     try {
       const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
       if (result.rows.length > 0) {
         const user = result.rows[0];
         const storedHashedPassword = user.password;
+        if (!storedHashedPassword) {
+          // User signed up with Google, so no password set
+          return cb(null, false, { message: "Please log in with Google." });
+        }
         bcrypt.compare(password, storedHashedPassword, (err, valid) => {
           if (err) {
             console.error("Error comparing passwords:", err);
@@ -134,6 +142,56 @@ passport.use(
       console.error("Database error during login:", err);
       return cb(err);
     }
+  })
+);
+
+passport.use(
+  "google",
+  new GoogleStrategy.Strategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/auth/google/callback",
+      passReqToCallback: true,
+    },
+    async (request, accessToken, refreshToken, profile, done) => {
+      try {
+        const result = await db.query("SELECT * FROM users WHERE email = $1", [
+          profile.email,
+        ]);
+        if (result.rows.length === 0) {
+          const newUser = await db.query(
+            "INSERT INTO users (email, google_id, password) VALUES ($1, $2, $3) RETURNING *",
+            [profile.email, profile.id, null] // Password is null for Google users
+          );
+          return done(null, newUser.rows[0]);
+        } else {
+          // User exists, update google_id if missing
+          const user = result.rows[0];
+          if (!user.google_id) {
+            await db.query("UPDATE users SET google_id = $1 WHERE email = $2", [profile.id, profile.email]);
+          }
+          return done(null, user);
+        }
+      } catch (err) {
+        return done(err);
+      }
+    }
+  )
+);
+
+app.get(
+  "/auth/google",
+  passport.authenticate("google", {
+    scope: ["email", "profile"],
+  })
+);
+
+app.get(
+  "/auth/google/callback",
+  passport.authenticate("google", {
+    successRedirect: "/",
+    failureRedirect: "/login",
   })
 );
 
