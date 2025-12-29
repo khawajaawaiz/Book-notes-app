@@ -93,7 +93,13 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.get("/login", (req, res) => {
+app.get("/login", (req, res, next) => {
+  if (req.query.code) {
+    return passport.authenticate("google", {
+      successRedirect: "/",
+      failureRedirect: "/login",
+    })(req, res, next);
+  }
   res.render("login.ejs");
 });
 
@@ -145,42 +151,46 @@ passport.use(
   })
 );
 
-passport.use(
-  "google",
-  new GoogleStrategy.Strategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.NODE_ENV === 'production'
-        ? "https://book-notes-app-ten.vercel.app/auth/google/callback"
-        : "http://localhost:3000/auth/google/callback",
-      passReqToCallback: true,
-    },
-    async (request, accessToken, refreshToken, profile, done) => {
-      try {
-        const result = await db.query("SELECT * FROM users WHERE email = $1", [
-          profile.email,
-        ]);
-        if (result.rows.length === 0) {
-          const newUser = await db.query(
-            "INSERT INTO users (email, google_id, password) VALUES ($1, $2, $3) RETURNING *",
-            [profile.email, profile.id, null] // Password is null for Google users
-          );
-          return done(null, newUser.rows[0]);
-        } else {
-          // User exists, update google_id if missing
-          const user = result.rows[0];
-          if (!user.google_id) {
-            await db.query("UPDATE users SET google_id = $1 WHERE email = $2", [profile.id, profile.email]);
+if (process.env.GOOGLE_CLIENT_ID) {
+  passport.use(
+    "google",
+    new GoogleStrategy.Strategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.NODE_ENV === 'production'
+          ? "https://book-notes-app-ten.vercel.app/login"
+          : "http://localhost:3000/auth/google/callback",
+        passReqToCallback: true,
+      },
+      async (request, accessToken, refreshToken, profile, done) => {
+        try {
+          const result = await db.query("SELECT * FROM users WHERE email = $1", [
+            profile.email,
+          ]);
+          if (result.rows.length === 0) {
+            const newUser = await db.query(
+              "INSERT INTO users (email, google_id, password) VALUES ($1, $2, $3) RETURNING *",
+              [profile.email, profile.id, null] // Password is null for Google users
+            );
+            return done(null, newUser.rows[0]);
+          } else {
+            // User exists, update google_id if missing
+            const user = result.rows[0];
+            if (!user.google_id) {
+              await db.query("UPDATE users SET google_id = $1 WHERE email = $2", [profile.id, profile.email]);
+            }
+            return done(null, user);
           }
-          return done(null, user);
+        } catch (err) {
+          return done(err);
         }
-      } catch (err) {
-        return done(err);
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.warn("⚠️ Google Client ID not found. Google Auth strategy skipped.");
+}
 
 app.get(
   "/auth/google",
@@ -189,13 +199,7 @@ app.get(
   })
 );
 
-app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", {
-    successRedirect: "/",
-    failureRedirect: "/login",
-  })
-);
+
 
 passport.serializeUser((user, cb) => {
   cb(null, user.id);
