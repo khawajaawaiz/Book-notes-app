@@ -13,7 +13,10 @@ const saltRounds = 10;
 
 // PostgreSQL Pool
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres.tvwwsnwfsybzeeulcxjb:HWW7s348UpZRZGKY@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres",
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // Test DB Connection
