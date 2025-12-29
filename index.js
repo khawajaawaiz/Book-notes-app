@@ -33,7 +33,7 @@ app.use(express.static("public"));
 
 
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || "default_dev_secret", // Fallback for development/deployment without env
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false } // Set to true if using HTTPS
