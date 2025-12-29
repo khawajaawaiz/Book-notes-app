@@ -395,6 +395,13 @@ app.post("/edit/:id", isAuthenticated, isAdmin, async (req, res) => {
 
 
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("🔥 Unhandled Application Error:", err);
+  // Ensure we pass 'message' to matching err.ejs expectation
+  res.status(500).render("err.ejs", { message: err.message || "Internal Server Error" });
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
 });
