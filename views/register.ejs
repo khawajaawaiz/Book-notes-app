@@ -12,11 +12,13 @@
                 <form action="/register" method="POST">
                     <div class="mb-3">
                         <label for="email" class="form-label">Email address</label>
-                        <input type="email" class="form-control" name="email" required>
+                        <input type="email" class="form-control" name="email" id="email" autocomplete="username"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" name="password" required>
+                        <input type="password" class="form-control" name="password" id="password"
+                            autocomplete="new-password" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Register</button>
                     <a href="/auth/google" class="btn btn-danger" role="button">
