@@ -93,13 +93,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.get("/login", (req, res, next) => {
-  if (req.query.code) {
-    return passport.authenticate("google", {
-      successRedirect: "/",
-      failureRedirect: "/login",
-    })(req, res, next);
-  }
+app.get("/login", (req, res) => {
   res.render("login.ejs");
 });
 
@@ -157,7 +151,7 @@ if (process.env.GOOGLE_CLIENT_ID) {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: process.env.NODE_ENV === 'production'
-          ? "https://book-notes-app-ten.vercel.app/login"
+          ? "https://book-notes-app-ten.vercel.app/auth/google/callback"
           : "http://localhost:3000/auth/google/callback",
         passReqToCallback: true,
       },
@@ -194,6 +188,14 @@ app.get(
   "/auth/google",
   passport.authenticate("google", {
     scope: ["email", "profile"],
+  })
+);
+
+app.get(
+  "/auth/google/callback",
+  passport.authenticate("google", {
+    successRedirect: "/",
+    failureRedirect: "/login",
   })
 );
 
